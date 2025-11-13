@@ -1,6 +1,8 @@
 #include <iostream>
 #include "memory_simulator.h"
 
+using namespace std;
+
 int main(int argc, char* argv[]) {
     std::cout << "HybridMemSim - Hybrid Memory Simulator" << std::endl;
 
