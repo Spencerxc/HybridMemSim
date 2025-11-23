@@ -3,9 +3,17 @@
 
 #include <cstdint>
 
+typedef struct config{
+
+    int bank_count;
+    int bank_size;
+    int initial_value;
+
+} Config;
+
 class MemorySimulator {
 public:
-    MemorySimulator();
+    MemorySimulator(config config_struct);
     ~MemorySimulator();
 
     void initialize();

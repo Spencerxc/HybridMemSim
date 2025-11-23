@@ -5,13 +5,6 @@
 
 using namespace std;
 
-typedef struct config{
-
-    int bank_count;
-    int bank_size;
-    int initial_value;
-
-} Config;
 
 int read_config(string file_path, Config * config){
 
@@ -54,8 +47,46 @@ int main(int argc, char* argv[]) {
     
     if (read_config(config_path,&config)) return 1;
 
-    MemorySimulator memorysim;
+    MemorySimulator memorysim(config);
+    int selection;
 
+    cout<< "\n\n***Welcome to the Hybrid Memory Simulatior***\n\nPlease make a selection:\n" << endl;
+    
+    cout << "p\t-- print all memory statistics" << endl;
+    cout << "c\t-- clear memory" << endl;
+    cout << "r\t-- run the memory simulator" << endl;
+
+    cout << "q\t-- exit the simulator\n" << endl;
+  
+    cout << "------------------------------------------------------------------\n" << endl;
+
+    selection = cin.get();
+    cin.ignore();
+    bool selection_flag = false;
+    
+    while(!selection_flag){
+    switch (selection)
+    {
+        case 'p':
+        selection_flag = true;
+        break;
+
+        case 'c':
+        /* code */
+        break;
+
+        case 'r':
+        /* code */
+        break;
+
+        case 'q':
+        /* code */
+        break;
+
+    default:
+        cout<< "Invalid selection" << endl;
+        
+    }}
 
     
     // TODO: Parse command line arguments

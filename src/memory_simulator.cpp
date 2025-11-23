@@ -7,10 +7,10 @@
 
 using namespace std;
 
-class MemorySimulator{
+//class MemorySimulator{
 
-public:
-    MemorySimulator::MemorySimulator() {
+//public:
+    MemorySimulator::MemorySimulator(config config_struct) {
 
     }
 
@@ -39,7 +39,7 @@ public:
         // TODO: Output throughput metrics
         // TODO: Output hit/miss ratios
     }
-};
+//};
 
 // void clear_memory(vector<int>& arr){
 
