@@ -2,6 +2,10 @@
 #define MEMORY_SIMULATOR_H
 
 #include <cstdint>
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <vector>
 
 typedef struct config{
 
@@ -11,9 +15,23 @@ typedef struct config{
 
 } Config;
 
+struct Bank {
+    std::vector<std::vector<uint8_t>> rows;
+    uint32_t active_row;
+    
+    Bank(uint32_t num_rows, uint32_t cols) : active_row(-1) {
+        rows.resize(num_rows, std::vector<uint8_t>(cols, 0));
+    }
+};
+
 class MemorySimulator {
 public:
-    MemorySimulator(config config_struct);
+     MemorySimulator(Config config) {
+        banks.reserve(config.bank_count);
+        for (int i = 0; i < config.bank_count; i++) {
+            banks.emplace_back(config.bank_size, 1024);
+        }
+    }
     ~MemorySimulator();
 
     void initialize();
@@ -21,6 +39,8 @@ public:
     void printStats();
 
 private:
+
+std::vector<Bank> banks;
     // TODO: Add member variables for DRAM, Flash, queues, etc.
 };
 

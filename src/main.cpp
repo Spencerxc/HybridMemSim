@@ -1,6 +1,3 @@
-#include <iostream>
-#include <string>
-#include <fstream>
 #include "./../include/memory_simulator.h"
 
 using namespace std;
@@ -22,8 +19,19 @@ int read_config(string file_path, Config * config){
 
     file.close();
     return 0;
-
 }
+
+void display_menu() {
+    cout << "\n\n***Welcome to the Hybrid Memory Simulator***\n\nPlease make a selection:\n" << endl;
+    cout << "p\t-- print all memory statistics" << endl;
+    cout << "c\t-- clear memory" << endl;
+    cout << "r\t-- run the memory simulator" << endl;
+    cout << "h\t-- display this help menu" << endl;
+    cout << "q\t-- exit the simulator\n" << endl;
+    cout << "------------------------------------------------------------------\n" << endl;
+    cout << "Selection: ";
+}
+
 
 
 
@@ -34,59 +42,78 @@ int main(int argc, char* argv[]) {
     //parse command line arguments
         if (argc != 2){
             cout << "Argument Error" << endl;
-            //cout << "Usage: <number of banks > <bank size in words> <path to config file>" << endl;
             cout << "Usage: <path to config file>" << endl;
             return 1;
         }
-        //build dram array
-        // int bank_count = stoi(argv[1]);
-        // int bank_size = stoi(argv[2]);
-        //string config_path = argv[3]
+
         string config_path = argv[1];
         Config config;
     
-    if (read_config(config_path,&config)) return 1;
+    if (read_config(config_path, &config)) return 1;
 
     MemorySimulator memorysim(config);
-    int selection;
+    char selection;
+    bool running = true;
 
-    cout<< "\n\n***Welcome to the Hybrid Memory Simulatior***\n\nPlease make a selection:\n" << endl;
+     display_menu();
     
-    cout << "p\t-- print all memory statistics" << endl;
-    cout << "c\t-- clear memory" << endl;
-    cout << "r\t-- run the memory simulator" << endl;
-
-    cout << "q\t-- exit the simulator\n" << endl;
-  
-    cout << "------------------------------------------------------------------\n" << endl;
-
-    selection = cin.get();
-    cin.ignore();
-    bool selection_flag = false;
-    
-    while(!selection_flag){
-    switch (selection)
-    {
-        case 'p':
-        selection_flag = true;
-        break;
-
-        case 'c':
-        /* code */
-        break;
-
-        case 'r':
-        /* code */
-        break;
-
-        case 'q':
-        /* code */
-        break;
-
-    default:
-        cout<< "Invalid selection" << endl;
+    while(running) {
+        selection = cin.get();
+        cin.ignore(1000, '\n');  // Clear input buffer
         
-    }}
+        switch (selection) {
+            case 'p':
+            case 'P':
+                cout << "\n=== Memory Statistics ===" << endl;
+                //print method here
+                cout << "\nPress Enter to continue...";
+                cin.get();
+                display_menu();
+                break;
+
+            case 'c':
+            case 'C':
+                cout << "\n=== Clearing Memory ===" << endl;
+                //clear method here
+                cout << "Memory cleared successfully!" << endl;
+                cout << "\nPress Enter to continue...";
+                cin.get();
+                display_menu();
+                break;
+
+            case 'r':
+            case 'R':
+                cout << "\n=== Running Memory Simulator ===" << endl;
+                //run method here
+                cout << "\nSimulation complete!" << endl;
+                cout << "\nPress Enter to continue...";
+                cin.get();
+                display_menu();
+                break;
+
+            case 'h':
+            case 'H':
+                display_menu();
+                break;
+
+            case 'q':
+            case 'Q':
+                cout << "\n=== Exiting Simulator ===" << endl;
+                running = false;
+                break;
+
+            case '\n':
+            case '\r':
+                // Ignore empty lines
+                break;
+
+            default:
+                cout << "Invalid selection: '" << selection << "'" << endl;
+                cout << "Please try again or press 'h' for help." << endl;
+                cout << "Selection: ";
+                break;
+        }
+    }
 
     
     // TODO: Parse command line arguments
