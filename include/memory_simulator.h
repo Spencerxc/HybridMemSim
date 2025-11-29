@@ -26,15 +26,12 @@ struct Bank {
 
 class MemorySimulator {
 public:
-     MemorySimulator(Config config) {
-        banks.reserve(config.bank_count);
-        for (int i = 0; i < config.bank_count; i++) {
-            banks.emplace_back(config.bank_size, 1024);
-        }
-    }
+    MemorySimulator(Config config);
+
     ~MemorySimulator();
 
     void initialize();
+    void clear();
     void run();
     void printStats();
 

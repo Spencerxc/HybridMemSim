@@ -66,6 +66,7 @@ int main(int argc, char* argv[]) {
             case 'P':
                 cout << "\n=== Memory Statistics ===" << endl;
                 //print method here
+                MemorySimulator.print_statistics();
                 cout << "\nPress Enter to continue...";
                 cin.get();
                 display_menu();
@@ -75,6 +76,7 @@ int main(int argc, char* argv[]) {
             case 'C':
                 cout << "\n=== Clearing Memory ===" << endl;
                 //clear method here
+                MemorySimulator.clear();
                 cout << "Memory cleared successfully!" << endl;
                 cout << "\nPress Enter to continue...";
                 cin.get();
@@ -85,6 +87,7 @@ int main(int argc, char* argv[]) {
             case 'R':
                 cout << "\n=== Running Memory Simulator ===" << endl;
                 //run method here
+                ::MemorySimulator.run();
                 cout << "\nSimulation complete!" << endl;
                 cout << "\nPress Enter to continue...";
                 cin.get();

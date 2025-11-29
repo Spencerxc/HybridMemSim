@@ -10,8 +10,11 @@ using namespace std;
 //class MemorySimulator{
 
 //public:
-    MemorySimulator::MemorySimulator(config config_struct) {
-
+    MemorySimulator::MemorySimulator(config config) {
+        banks.reserve(config.bank_count);
+        for (int i = 0; i < config.bank_count; i++) {
+            banks.emplace_back(config.bank_size, 1024);
+        }
     }
 
     MemorySimulator::~MemorySimulator() {
