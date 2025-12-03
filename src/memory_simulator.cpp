@@ -30,6 +30,18 @@ using namespace std;
         // TODO: Set up queues and buffers
     }
 
+    void MemorySimulator::clear() {
+        for (auto& bank : banks) {
+        // Reset all rows to zero
+            for (auto& row : bank.rows) {
+                fill(row.begin(), row.end(), 0);
+            }
+        // Reset active row indicator
+        bank.active_row = -1;
+        }
+    }
+
+
     void MemorySimulator::run() {
         // TODO: Main simulation loop
         // TODO: Process memory requests
