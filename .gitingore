@@ -1,4 +1,0 @@
-#ignore these file extentions
-*.out
-*.o
-build

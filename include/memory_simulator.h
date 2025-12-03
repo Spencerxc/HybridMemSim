@@ -6,6 +6,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <sstream>
 
 typedef struct config{
 
@@ -34,6 +35,8 @@ public:
     void clear();
     void run();
     void printStats();
+    void processAccess(char operation, uint64_t address);
+    void performRefresh();
 
 private:
 

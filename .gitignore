@@ -1,0 +1,15 @@
+# Ignore top-level build directory
+/build/
+
+# Also ignore any nested build/ directories (redundant but explicit)
+build/
+
+# Ignore object and binary artifacts
+*.o
+*.out
+*.exe
+*.log
+
+# IDE/editor folders
+.vscode/
+.idea/
