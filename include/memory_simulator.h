@@ -37,7 +37,16 @@ public:
 
 private:
 
-std::vector<Bank> banks;
+    std::vector<Bank> banks;
+    uint64_t total_accesses;
+    uint64_t row_hits;
+    uint64_t row_misses;
+    uint64_t total_latency;
+    uint64_t refresh_cycles;
+
+    const uint32_t ROW_HIT_LATENCY = 10;
+    const uint32_t ROW_MISS_LATENCY = 30;
+    const uint32_t REFRESH_LATENCY = 50;
     // TODO: Add member variables for DRAM, Flash, queues, etc.
 };
 
