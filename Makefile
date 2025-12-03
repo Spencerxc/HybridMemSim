@@ -7,25 +7,25 @@ LDFLAGS =
 SRC_DIR = src
 INC_DIR = include
 BUILD_DIR = build
-TARGET = $(BUILD_DIR)/memsim
+BIN = $(BUILD_DIR)/HybridMemSim
 
 # Source files
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 
 # Default target
-all: $(BUILD_DIR) $(TARGET)
+all: $(BUILD_DIR) $(BIN)
 
 # Create build directory
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 # Link
-$(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+$(BIN): $(OBJECTS)
+	$(CXX) $(LDFLAGS) $^ -o $@
 
-# Compile
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+# Compile (ensure build dir exists before compiling objects)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean
@@ -33,7 +33,7 @@ clean:
 	rm -rf $(BUILD_DIR)/*
 
 # Run
-run: $(TARGET)
-	./$(TARGET)
+run: $(BIN)
+	./$(BIN) ./config/default.cfg
 
 .PHONY: all clean run
