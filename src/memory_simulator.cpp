@@ -36,23 +36,27 @@ using namespace std;
             flash = new FlashMemory(config.flash_capacity, config.flash_page_size);
             flash_reads = 0;
             flash_writes = 0;
-            migrations_to_dram = 0;
-            migrations_to_flash = 0;
+            cache_promotions = 0;
+            cache_evictions = 0;
+            dram_cache_hits = 0;
+            dram_cache_misses = 0;
             dram_access_latency = 0;
             flash_access_latency = 0;
-            migration_overhead = 0;
-            cout << "Hybrid mode enabled: Flash memory initialized with "
+            cache_overhead = 0;
+            cout << "Hybrid mode enabled (DRAM-as-cache model): Flash memory initialized with "
                  << config.flash_capacity << " bytes ("
                  << (config.flash_capacity / config.flash_page_size) << " pages)" << endl;
         } else {
             flash = nullptr;
             flash_reads = 0;
             flash_writes = 0;
-            migrations_to_dram = 0;
-            migrations_to_flash = 0;
+            cache_promotions = 0;
+            cache_evictions = 0;
+            dram_cache_hits = 0;
+            dram_cache_misses = 0;
             dram_access_latency = 0;
             flash_access_latency = 0;
-            migration_overhead = 0;
+            cache_overhead = 0;
         }
     }
 
@@ -107,16 +111,18 @@ using namespace std;
 
             // Clear tracking maps
             access_frequency.clear();
-            data_location.clear();
+            data_in_dram_cache.clear();
 
             // Reset flash statistics
             flash_reads = 0;
             flash_writes = 0;
-            migrations_to_dram = 0;
-            migrations_to_flash = 0;
+            cache_promotions = 0;
+            cache_evictions = 0;
+            dram_cache_hits = 0;
+            dram_cache_misses = 0;
             dram_access_latency = 0;
             flash_access_latency = 0;
-            migration_overhead = 0;
+            cache_overhead = 0;
 
             cout << "Flash initialization complete!" << endl;
             cout << "Flash capacity: " << flash->total_capacity << " bytes ("
@@ -155,16 +161,18 @@ using namespace std;
 
             // Clear tracking maps
             access_frequency.clear();
-            data_location.clear();
+            data_in_dram_cache.clear();
 
             // Reset flash statistics
             flash_reads = 0;
             flash_writes = 0;
-            migrations_to_dram = 0;
-            migrations_to_flash = 0;
+            cache_promotions = 0;
+            cache_evictions = 0;
+            dram_cache_hits = 0;
+            dram_cache_misses = 0;
             dram_access_latency = 0;
             flash_access_latency = 0;
-            migration_overhead = 0;
+            cache_overhead = 0;
         }
     }
 
@@ -231,36 +239,41 @@ using namespace std;
     void MemorySimulator::processAccess(char operation, uint64_t address) {
         total_accesses++;
 
-        // Hybrid memory logic (if enabled)
-        if (hybrid_mode) {
-            // Update access frequency for this address
+        // Hybrid memory logic: DRAM-as-cache model
+        if (hybrid_mode && flash != nullptr) {
+            // Update access frequency
             updateAccessFrequency(address);
 
-            // Check if data location is tracked, if not initialize to DRAM
-            if (data_location.find(address) == data_location.end()) {
-                data_location[address] = true; // Start in DRAM by default
-            }
-
-            bool in_dram = data_location[address];
+            // Check if address is cached in DRAM
+            bool cached_in_dram = (data_in_dram_cache.find(address) != data_in_dram_cache.end())
+                                  && data_in_dram_cache[address];
             bool is_hot = isHotData(address);
 
-            // Migration logic (on every access)
-            if (is_hot && !in_dram) {
-                // Hot data in Flash -> migrate to DRAM
-                migrateToDRAM(address);
-                in_dram = true;
-            } else if (!is_hot && in_dram) {
-                // Cold data in DRAM -> migrate to Flash
-                migrateToFlash(address);
-                in_dram = false;
+            // Cache management logic
+            if (is_hot && !cached_in_dram) {
+                // HOT data not in cache → PROMOTE to DRAM cache
+                cache_promotions++;
+                cache_overhead += CACHE_PROMOTION_LATENCY;
+                total_latency += CACHE_PROMOTION_LATENCY;
+                data_in_dram_cache[address] = true;
+                cached_in_dram = true;
+            } else if (!is_hot && cached_in_dram) {
+                // COLD data in cache → EVICT from DRAM cache
+                cache_evictions++;
+                cache_overhead += CACHE_EVICTION_LATENCY;
+                total_latency += CACHE_EVICTION_LATENCY;
+                data_in_dram_cache[address] = false;
+                cached_in_dram = false;
             }
 
-            // Access data from appropriate memory
-            if (in_dram) {
-                // Access from DRAM
-                uint32_t bank_index = (address >> 12) & 0x3; // 4 banks
-                uint32_t row_index = (address >> 2) & 0x3FF; // 1024 rows
-                uint32_t col_index = address & 0x3;          // 4 bytes per row
+            // Access the data
+            if (cached_in_dram) {
+                // ========== CACHE HIT: Access from DRAM cache (FAST!) ==========
+                dram_cache_hits++;
+
+                uint32_t bank_index = (address >> 12) & 0x3;
+                uint32_t row_index = (address >> 2) & 0x3FF;
+                uint32_t col_index = address & 0x3;
 
                 if (bank_index >= banks.size() || row_index >= banks[bank_index].rows.size() ||
                     col_index >= banks[bank_index].rows[row_index].size()) {
@@ -270,67 +283,70 @@ using namespace std;
 
                 Bank& bank = banks[bank_index];
 
-                // Check for row buffer hit/miss
+                // Row buffer hit/miss
                 uint32_t access_latency;
                 if (bank.active_row == row_index) {
                     row_hits++;
-                    access_latency = ROW_HIT_LATENCY;
+                    access_latency = ROW_HIT_LATENCY;  // 10 cycles - FAST!
                 } else {
                     row_misses++;
-                    access_latency = ROW_MISS_LATENCY;
+                    access_latency = ROW_MISS_LATENCY; // 30 cycles
                     bank.active_row = row_index;
                 }
 
                 total_latency += access_latency;
                 dram_access_latency += access_latency;
 
-                // Perform operation
+                // Perform DRAM operation
                 if (operation == 'R') {
                     volatile uint8_t data = bank.rows[row_index][col_index];
                     (void)data;
                 } else if (operation == 'W') {
                     bank.rows[row_index][col_index] = 0xFF;
+                    // Write-through: also update Flash
+                    flash_writes++;
+                    flash_access_latency += FLASH_WRITE_LATENCY;
+                    total_latency += FLASH_WRITE_LATENCY;
                 }
+
             } else {
-                // Access from Flash
-                if (flash != nullptr) {
-                    uint32_t page_index = address / flash->page_size;
-                    uint32_t byte_offset = address % flash->page_size;
+                // ========== CACHE MISS: Access from Flash only (SLOW) ==========
+                dram_cache_misses++;
 
-                    if (page_index >= flash->pages.size()) {
-                        cerr << "Warning: Flash address out of bounds: " << hex << address << endl;
-                        return;
-                    }
+                uint32_t page_index = address / flash->page_size;
+                uint32_t byte_offset = address % flash->page_size;
 
-                    FlashPage& page = flash->pages[page_index];
-                    uint32_t access_latency;
-
-                    if (operation == 'R') {
-                        flash_reads++;
-                        access_latency = FLASH_READ_LATENCY;
-                        if (byte_offset < page.data.size()) {
-                            volatile uint8_t data = page.data[byte_offset];
-                            (void)data;
-                        }
-                    } else if (operation == 'W') {
-                        flash_writes++;
-                        access_latency = FLASH_WRITE_LATENCY;
-                        if (byte_offset < page.data.size()) {
-                            page.data[byte_offset] = 0xFF;
-                            page.write_count++;
-                        }
-                    } else {
-                        cerr << "Warning: Unknown operation '" << operation << "'" << endl;
-                        return;
-                    }
-
-                    page.last_access_time = total_accesses;
-                    total_latency += access_latency;
-                    flash_access_latency += access_latency;
+                if (page_index >= flash->pages.size()) {
+                    cerr << "Warning: Flash address out of bounds: " << hex << address << endl;
+                    return;
                 }
+
+                FlashPage& page = flash->pages[page_index];
+                uint32_t access_latency;
+
+                if (operation == 'R') {
+                    flash_reads++;
+                    access_latency = FLASH_READ_LATENCY;  // 100 cycles - slower than DRAM
+                    if (byte_offset < page.data.size()) {
+                        volatile uint8_t data = page.data[byte_offset];
+                        (void)data;
+                    }
+                } else if (operation == 'W') {
+                    flash_writes++;
+                    access_latency = FLASH_WRITE_LATENCY;  // 500 cycles - much slower
+                    if (byte_offset < page.data.size()) {
+                        page.data[byte_offset] = 0xFF;
+                        page.write_count++;
+                    }
+                }
+
+                page.last_access_time = total_accesses;
+                total_latency += access_latency;
+                flash_access_latency += access_latency;
             }
+
         } else {
-            // Non-hybrid mode: standard DRAM-only access
+            // ========== DRAM-only mode: No caching, pure DRAM ==========
             uint32_t bank_index = (address >> 12) & 0x3;
             uint32_t row_index = (address >> 2) & 0x3FF;
             uint32_t col_index = address & 0x3;
@@ -421,49 +437,62 @@ using namespace std;
         cout << "Rows per Bank:             " << (banks.empty() ? 0 : banks[0].rows.size()) << endl;
         cout << "Columns per Row:           " << (banks.empty() || banks[0].rows.empty() ? 0 : banks[0].rows[0].size()) << endl;
 
-        // Hybrid memory statistics (if enabled)
+        // Hybrid memory statistics (DRAM-as-cache model)
         if (hybrid_mode) {
-            cout << "\n=== Hybrid Memory Statistics ===" << endl;
+            cout << "\n=== Hybrid Memory Statistics (DRAM-as-Cache) ===" << endl;
             cout << "-----------------------------------" << endl;
 
-            cout << "\n--- Access Counts ---" << endl;
-            // Calculate DRAM vs Flash access counts
-            // In hybrid mode, row_hits/misses count DRAM accesses only
-            uint64_t dram_accesses = row_hits + row_misses;
-            uint64_t flash_accesses = flash_reads + flash_writes;
+            cout << "\n--- Cache Performance ---" << endl;
+            cout << "DRAM Cache Hits:           " << dram_cache_hits << endl;
+            cout << "DRAM Cache Misses:         " << dram_cache_misses << endl;
+            if (total_accesses > 0) {
+                double cache_hit_rate = (double)dram_cache_hits / total_accesses * 100.0;
+                cout << "Cache Hit Rate:            " << fixed << setprecision(2)
+                     << cache_hit_rate << "% (hot data cached in DRAM)" << endl;
+            }
 
-            cout << "DRAM Accesses:             " << dram_accesses
-                 << " (hits: " << row_hits << ", misses: " << row_misses << ")" << endl;
-            cout << "Flash Reads:               " << flash_reads << endl;
-            cout << "Flash Writes:              " << flash_writes << endl;
-            cout << "Total Flash Accesses:      " << flash_accesses << endl;
+            cout << "\n--- Cache Management ---" << endl;
+            cout << "Cache Promotions:          " << cache_promotions
+                 << " (cold→hot, loaded into DRAM)" << endl;
+            cout << "Cache Evictions:           " << cache_evictions
+                 << " (hot→cold, evicted from DRAM)" << endl;
+            cout << "Cache Overhead:            " << cache_overhead << " cycles" << endl;
 
-            cout << "\n--- Migration Statistics ---" << endl;
-            cout << "Migrations to DRAM:        " << migrations_to_dram << endl;
-            cout << "Migrations to Flash:       " << migrations_to_flash << endl;
-            cout << "Total Migrations:          " << (migrations_to_dram + migrations_to_flash) << endl;
-            cout << "Migration Overhead:        " << migration_overhead << " cycles" << endl;
+            cout << "\n--- Access Breakdown ---" << endl;
+            uint64_t dram_row_accesses = row_hits + row_misses;
+            cout << "DRAM Accesses (cached):    " << dram_row_accesses
+                 << " (row hits: " << row_hits << ", misses: " << row_misses << ")" << endl;
+            if (dram_row_accesses > 0) {
+                double row_hit_rate = (double)row_hits / dram_row_accesses * 100.0;
+                cout << "  DRAM Row Buffer Hit Rate:" << fixed << setprecision(2)
+                     << row_hit_rate << "%" << endl;
+            }
+            cout << "Flash Reads (cache miss):  " << flash_reads << endl;
+            cout << "Flash Writes:              " << flash_writes
+                 << " (write-through + direct)" << endl;
 
             cout << "\n--- Latency Breakdown ---" << endl;
-            cout << "DRAM Access Latency:       " << dram_access_latency << " cycles" << endl;
-            cout << "Flash Access Latency:      " << flash_access_latency << " cycles" << endl;
-            cout << "Migration Latency:         " << migration_overhead << " cycles" << endl;
+            cout << "DRAM Cache Latency:        " << dram_access_latency << " cycles (FAST path)" << endl;
+            cout << "Flash Access Latency:      " << flash_access_latency << " cycles (SLOW path)" << endl;
+            cout << "Cache Management:          " << cache_overhead << " cycles (promotion/eviction)" << endl;
             cout << "Total Latency:             " << total_latency << " cycles" << endl;
 
-            cout << "\n--- Access Distribution ---" << endl;
             if (total_accesses > 0) {
-                uint64_t dram_accesses = row_hits + row_misses;
-                uint64_t flash_accesses = flash_reads + flash_writes;
-                double dram_ratio = (double)dram_accesses / total_accesses * 100.0;
-                double flash_ratio = (double)flash_accesses / total_accesses * 100.0;
-                double dram_hit_ratio = dram_accesses > 0 ? (double)row_hits / dram_accesses * 100.0 : 0.0;
+                double avg_latency = (double)total_latency / total_accesses;
+                cout << "Average Access Latency:    " << fixed << setprecision(2)
+                     << avg_latency << " cycles" << endl;
+            }
 
-                cout << "DRAM Access Ratio:         " << fixed << setprecision(2)
-                     << dram_ratio << "% (" << dram_accesses << " accesses)" << endl;
-                cout << "Flash Access Ratio:        " << fixed << setprecision(2)
-                     << flash_ratio << "% (" << flash_accesses << " accesses)" << endl;
-                cout << "DRAM Row Buffer Hit Rate:  " << fixed << setprecision(2)
-                     << dram_hit_ratio << "%" << endl;
+            cout << "\n--- Performance Analysis ---" << endl;
+            if (dram_cache_hits > 0) {
+                double avg_cache_hit_latency = (double)dram_access_latency / dram_cache_hits;
+                cout << "Avg Cache Hit Latency:     " << fixed << setprecision(2)
+                     << avg_cache_hit_latency << " cycles (when in DRAM)" << endl;
+            }
+            if (dram_cache_misses > 0) {
+                double avg_cache_miss_latency = (double)flash_access_latency / dram_cache_misses;
+                cout << "Avg Cache Miss Latency:    " << fixed << setprecision(2)
+                     << avg_cache_miss_latency << " cycles (when in Flash only)" << endl;
             }
 
             cout << "\n--- Flash Memory Status ---" << endl;
@@ -494,39 +523,13 @@ using namespace std;
     }
 
     void MemorySimulator::migrateToDRAM(uint64_t address) {
-        // Migrate data from Flash to DRAM
-        if (!hybrid_mode || flash == nullptr) return;
-
-        // Check if data is actually in Flash
-        if (data_location.find(address) != data_location.end() && data_location[address] == true) {
-            return; // Already in DRAM
-        }
-
-        // Perform migration
-        migrations_to_dram++;
-        migration_overhead += MIGRATION_LATENCY;
-        total_latency += MIGRATION_LATENCY;
-
-        // Update data location
-        data_location[address] = true; // true = DRAM
+        // Legacy method - not used in cache model
+        (void)address;
     }
 
     void MemorySimulator::migrateToFlash(uint64_t address) {
-        // Migrate data from DRAM to Flash
-        if (!hybrid_mode || flash == nullptr) return;
-
-        // Check if data is actually in DRAM
-        if (data_location.find(address) != data_location.end() && data_location[address] == false) {
-            return; // Already in Flash
-        }
-
-        // Perform migration
-        migrations_to_flash++;
-        migration_overhead += MIGRATION_LATENCY;
-        total_latency += MIGRATION_LATENCY;
-
-        // Update data location
-        data_location[address] = false; // false = Flash
+        // Legacy method - not used in cache model
+        (void)address;
     }
 
     void MemorySimulator::generateTrace(uint64_t num_accesses) {
@@ -540,17 +543,25 @@ using namespace std;
         const uint64_t address_space = 0x100000; // 1MB address space
         const uint64_t hot_address_count = address_space / 5;  // 20% are hot
 
+        // Create row-aligned address ranges for better locality
+        // Each row is 4 bytes wide (based on address decoding: col_index = address & 0x3)
+        // Row changes every 4 addresses
+        const uint64_t row_size = 4;  // bytes per row
+
         // Distributions
-        std::uniform_int_distribution<uint64_t> hot_dist(0, hot_address_count - 1);
-        std::uniform_int_distribution<uint64_t> cold_dist(hot_address_count, address_space - 1);
+        std::uniform_int_distribution<uint64_t> hot_row_dist(0, (hot_address_count / row_size) - 1);
+        std::uniform_int_distribution<uint64_t> cold_row_dist(hot_address_count / row_size, (address_space / row_size) - 1);
+        std::uniform_int_distribution<uint64_t> column_dist(0, row_size - 1); // Column within row
         std::uniform_int_distribution<int> access_type(0, 99); // 0-99 for percentages
         std::uniform_int_distribution<int> op_type(0, 99);     // Read vs Write ratio
+        std::uniform_int_distribution<int> locality_check(0, 99); // For sequential locality
 
         cout << "\nTrace Generation Configuration:" << endl;
         cout << "  Address space: 0x0 - 0x" << hex << address_space << dec << endl;
         cout << "  Hot addresses: " << hot_address_count << " (accessed 80% of the time)" << endl;
         cout << "  Cold addresses: " << (address_space - hot_address_count) << " (accessed 20% of the time)" << endl;
         cout << "  Read/Write ratio: 70% reads, 30% writes" << endl;
+        cout << "  Spatial locality: 30% (sequential row accesses)" << endl;
 
         if (hybrid_mode) {
             cout << "\n  Hybrid Mode: ENABLED" << endl;
@@ -562,17 +573,36 @@ using namespace std;
 
         cout << "\nGenerating " << num_accesses << " memory accesses..." << endl;
 
+        // Track last accessed row for locality
+        uint64_t last_row = 0;
+        bool last_was_hot = false;
+
         // Generate and process accesses
         for (uint64_t i = 0; i < num_accesses; i++) {
             // Determine if this is a hot or cold access (80/20 rule)
             bool is_hot_access = (access_type(rng) < 80);
 
-            // Generate address
+            // Generate address with spatial locality
+            // 30% of the time, access the same row as last access (if same hot/cold category)
             uint64_t address;
-            if (is_hot_access) {
-                address = hot_dist(rng);
+            bool use_locality = (locality_check(rng) < 30) && (i > 0) && (is_hot_access == last_was_hot);
+
+            if (use_locality) {
+                // Access same row, different column for row buffer hit
+                uint64_t column = column_dist(rng);
+                address = (last_row * row_size) + column;
             } else {
-                address = cold_dist(rng);
+                // Generate new random address
+                uint64_t row;
+                if (is_hot_access) {
+                    row = hot_row_dist(rng);
+                } else {
+                    row = cold_row_dist(rng);
+                }
+                uint64_t column = column_dist(rng);
+                address = (row * row_size) + column;
+                last_row = row;
+                last_was_hot = is_hot_access;
             }
 
             // Determine operation (70% reads, 30% writes)

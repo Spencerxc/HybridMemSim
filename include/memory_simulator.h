@@ -102,25 +102,28 @@ private:
     FlashMemory* flash;
     bool hybrid_mode;
     std::map<uint64_t, uint64_t> access_frequency;  // Track access counts per address
-    std::map<uint64_t, bool> data_location;         // true = DRAM, false = Flash
+    std::map<uint64_t, bool> data_in_dram_cache;    // true = cached in DRAM, false = Flash only
 
     // Flash statistics
     uint64_t flash_reads;
     uint64_t flash_writes;
-    uint64_t migrations_to_dram;
-    uint64_t migrations_to_flash;
+    uint64_t cache_promotions;      // Cold data promoted to DRAM cache
+    uint64_t cache_evictions;       // Hot data evicted from DRAM cache
+    uint64_t dram_cache_hits;       // Data found in DRAM cache
+    uint64_t dram_cache_misses;     // Data not in DRAM cache (Flash access)
     uint64_t dram_access_latency;
     uint64_t flash_access_latency;
-    uint64_t migration_overhead;
+    uint64_t cache_overhead;        // Cost of promotions/evictions
 
     // Timing constants
     const uint32_t ROW_HIT_LATENCY = 10;
     const uint32_t ROW_MISS_LATENCY = 30;
     const uint32_t REFRESH_LATENCY = 50;
-    const uint32_t FLASH_READ_LATENCY = 100;   // ~2-5x slower than DRAM
-    const uint32_t FLASH_WRITE_LATENCY = 500;  // ~10x slower than DRAM
-    const uint32_t MIGRATION_LATENCY = 200;    // Cost to move data between DRAM/Flash
-    const uint64_t HOT_DATA_THRESHOLD = 3;     // Access count threshold for hot data
+    const uint32_t FLASH_READ_LATENCY = 100;    // ~2-5x slower than DRAM
+    const uint32_t FLASH_WRITE_LATENCY = 500;   // ~10x slower than DRAM
+    const uint32_t CACHE_PROMOTION_LATENCY = 150;  // Cost to load Flash→DRAM cache
+    const uint32_t CACHE_EVICTION_LATENCY = 50;    // Cost to evict from DRAM cache
+    const uint64_t HOT_DATA_THRESHOLD = 3;      // Access count threshold for caching
 };
 
 #endif // MEMORY_SIMULATOR_H
