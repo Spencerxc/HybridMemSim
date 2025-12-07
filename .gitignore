@@ -13,3 +13,5 @@ build/
 # IDE/editor folders
 .vscode/
 .idea/
+# Powershell scripts
+*.sh

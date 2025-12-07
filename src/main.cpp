@@ -17,6 +17,11 @@ int read_config(string file_path, Config * config){
 
     cout << "Reading config file: " << file_path << endl;
 
+    // Set defaults
+    config->initial_value = 0;
+    config->enable_flash = false;
+    config->trace_lines = 1000; // Default trace size
+
     string line;
     while (getline(file, line)) {
         // Skip empty lines and comments
@@ -26,17 +31,42 @@ int read_config(string file_path, Config * config){
 
         // Parse key = value format
         istringstream iss(line);
-        string key, equals;
-        int value;
+        string key, equals, value_str;
 
-        if (iss >> key >> equals >> value && equals == "=") {
+        if (iss >> key >> equals && equals == "=") {
+            // Read rest of line as value (handles bool and numeric types)
+            iss >> value_str;
+
+            // DRAM Configuration
             if (key == "dram_banks") {
-                config->bank_count = value;
-            } else if (key == "row_buffer_size" || key == "dram_columns") {
-                config->bank_size = value;
+                config->dram_banks = stoul(value_str);
+                config->bank_count = config->dram_banks;
+            } else if (key == "dram_columns") {
+                config->dram_columns = stoul(value_str);
             } else if (key == "dram_rows") {
-                // Store initial_value or map as needed
-                config->initial_value = 0; // Default value
+                config->dram_rows = stoul(value_str);
+            } else if (key == "row_buffer_size") {
+                config->bank_size = stoul(value_str);
+            }
+            // Flash/Hybrid Configuration
+            else if (key == "enable_flash") {
+                config->enable_flash = (value_str == "true" || value_str == "1");
+            } else if (key == "flash_capacity") {
+                config->flash_capacity = stoull(value_str);
+            } else if (key == "flash_page_size") {
+                config->flash_page_size = stoul(value_str);
+            }
+            // Timing Parameters
+            else if (key == "row_access_time") {
+                config->row_access_time = stoul(value_str);
+            } else if (key == "column_access_time") {
+                config->column_access_time = stoul(value_str);
+            } else if (key == "refresh_interval") {
+                config->refresh_interval = stoul(value_str);
+            }
+            // Simulation Parameters
+            else if (key == "trace_lines") {
+                config->trace_lines = stoull(value_str);
             }
         }
     }

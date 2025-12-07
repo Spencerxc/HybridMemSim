@@ -12,7 +12,7 @@ column_access_time = 15
 refresh_interval = 64000
 
 # Hybrid Mode
-enable_flash = false
+enable_flash = true
 flash_capacity = 1073741824  # 1GB in bytes
 flash_page_size = 4096
 
