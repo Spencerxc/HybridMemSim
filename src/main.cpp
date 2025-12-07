@@ -4,18 +4,42 @@ using namespace std;
 
 
 int read_config(string file_path, Config * config){
+    // Use default config path if empty
+    if (file_path.empty()) {
+        file_path = "./config/default.cfg";
+    }
 
     ifstream file(file_path);
-        if( !(file.is_open()) ){
-            cerr << "ERROR, INVALID CONFIG FILE PATH!!"<< endl;
-            return 1;
-        }
-    cout << "Reading config file" << endl;
-    string label;
+    if (!file.is_open()) {
+        cerr << "ERROR: Could not open config file: " << file_path << endl;
+        return 1;
+    }
 
-    file >> label >> label >> config->bank_count;
-    file >> label >> label >> config->bank_size;
-    file >> label >> label >> config->initial_value;
+    cout << "Reading config file: " << file_path << endl;
+
+    string line;
+    while (getline(file, line)) {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        // Parse key = value format
+        istringstream iss(line);
+        string key, equals;
+        int value;
+
+        if (iss >> key >> equals >> value && equals == "=") {
+            if (key == "dram_banks") {
+                config->bank_count = value;
+            } else if (key == "row_buffer_size" || key == "dram_columns") {
+                config->bank_size = value;
+            } else if (key == "dram_rows") {
+                // Store initial_value or map as needed
+                config->initial_value = 0; // Default value
+            }
+        }
+    }
 
     file.close();
     return 0;
@@ -39,16 +63,18 @@ void display_menu() {
 int main(int argc, char* argv[]) {
     cout << "HybridMemSim - Hybrid Memory Simulator" << endl;
 
-    //parse command line arguments
-        if (argc != 2){
-            cout << "Argument Error" << endl;
-            cout << "Usage: <path to config file>" << endl;
-            return 1;
-        }
+    // Parse command line arguments
+    string config_path;
+    if (argc >= 2) {
+        // Use provided config file path
+        config_path = argv[1];
+    } else {
+        // Use default config file
+        config_path = "";  // Empty string triggers default in read_config
+    }
 
-        string config_path = argv[1];
-        Config config;
-    
+    Config config;
+
     if (read_config(config_path, &config)) return 1;
 
     MemorySimulator memorysim(config);
