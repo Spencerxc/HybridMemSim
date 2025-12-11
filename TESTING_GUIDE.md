@@ -9,7 +9,7 @@ make clean && make
 
 ### 2. Run Interactive Simulator
 ```bash
-./build/HybridMemSim
+make run
 ```
 
 **Interactive Commands:**
@@ -18,12 +18,6 @@ make clean && make
 - `c` - Clear memory and reset stats
 - `h` - Display help menu
 - `q` - Quit simulator
-
-### 3. Quick Comparison Test
-```bash
-./compare_modes.sh
-```
-This runs both DRAM-only and Hybrid modes and compares results.
 
 ## Configuration
 
@@ -36,69 +30,6 @@ enable_flash = true          # true = hybrid, false = DRAM-only
 # Control test size
 trace_lines = 10000          # Number of memory accesses to generate
 ```
-
-## Test Scenarios
-
-### Scenario 1: Quick Validation (1,000 accesses)
-**Purpose:** Fast sanity check
-
-```bash
-# Edit config/default.cfg: trace_lines = 1000
-./build/HybridMemSim
-# Commands: r, p, q
-```
-
-**Expected Time:** < 1 second
-**Expected Results:**
-- DRAM-only: ~25K-30K cycles total latency, 25-30% hit ratio
-- Hybrid: ~250K cycles (includes Flash and migration overhead)
-
----
-
-### Scenario 2: Medium Scale (10,000 accesses)
-**Purpose:** Standard testing
-
-```bash
-# Edit config/default.cfg: trace_lines = 10000
-./build/HybridMemSim
-# Commands: r, p, q
-```
-
-**Expected Time:** < 5 seconds
-**Expected Results:**
-- Total Migrations: ~5,000-6,000
-- DRAM Access Ratio: ~40%
-- Flash Access Ratio: ~60%
-
----
-
-### Scenario 3: Large Scale (1,000,000 accesses)
-**Purpose:** Performance analysis at scale
-
-```bash
-# Edit config/default.cfg: trace_lines = 1000000
-./build/HybridMemSim
-# Commands: r, p, q
-```
-
-**Expected Time:** 30-60 seconds
-**Expected Results:**
-- Total Migrations: ~500,000+
-- Clear hot/cold data separation
-- Progress indicators during generation
-
----
-
-### Scenario 4: Automated Comparison
-**Purpose:** Compare DRAM-only vs Hybrid modes
-
-```bash
-./compare_modes.sh
-```
-
-**Output:** Side-by-side comparison of both modes
-
----
 
 ## Understanding the Output
 
@@ -160,16 +91,16 @@ DRAM Row Buffer Hit Rate:  1.00%
 
 ### Good Indicators (Hybrid Mode Working Correctly)
 
-✅ **DRAM Access Ratio: 35-45%**
+**DRAM Access Ratio: 35-45%**
 - Hot addresses being kept in DRAM
 
-✅ **Flash Access Ratio: 55-65%**
+**Flash Access Ratio: 55-65%**
 - Cold addresses stored in Flash
 
-✅ **More Migrations to Flash than DRAM**
+**More Migrations to Flash than DRAM**
 - System identifies and demotes cold data
 
-✅ **Row Buffer Hit Rate: 25-30%**
+**Row Buffer Hit Rate: 25-30%**
 - Spatial locality working correctly
 - **Note:** Hit rate improved from 0.1% to 25-30% with locality fix!
 
@@ -188,53 +119,6 @@ To test different workload patterns:
 bool is_hot_access = (access_type(rng) < 80);  // Change 80 to 90 for more hot accesses
 ```
 
----
-
-## Trace Size Recommendations
-
-| Trace Size | Use Case | Time | Migrations |
-|-----------|----------|------|------------|
-| 1,000 | Quick test | <1s | ~500 |
-| 10,000 | Development | <5s | ~5,000 |
-| 100,000 | Standard test | ~5s | ~50,000 |
-| 1,000,000 | Performance test | ~60s | ~500,000 |
-| 10,000,000 | Stress test | ~10min | ~5,000,000 |
-
----
-
-## Troubleshooting
-
-### Issue: Very low row buffer hit rate (<1%)
-**Cause:** Old version had no spatial locality
-**Fix:** The latest version includes 30% spatial locality
-**Expected:** Now should be 25-30% hit rate
-
-### Issue: No migrations happening
-**Check:**
-1. Is `enable_flash = true` in config?
-2. Is trace size large enough (>100 accesses)?
-
-### Issue: All accesses going to Flash
-**Cause:** Hot data threshold too low
-**Fix:** Increase HOT_DATA_THRESHOLD in header file
-
-### Issue: Compilation errors
-**Fix:**
-```bash
-make clean
-make
-```
-
----
-
-## Next Steps
-
-1. **Enable Flash:** Set `enable_flash = true` in config
-2. **Start Small:** Test with `trace_lines = 1000`
-3. **Compare Modes:** Run `./compare_modes.sh`
-4. **Scale Up:** Increase to 100K, 1M accesses
-5. **Analyze:** Study migration patterns and latency breakdown
-
 ## Files Reference
 
 - `config/default.cfg` - Configuration file
@@ -243,5 +127,3 @@ make
 - `build/HybridMemSim` - Compiled executable
 
 ---
-
-**Ready to test!** Start with the Quick Validation scenario and work your way up to large-scale tests.
